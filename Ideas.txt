@@ -1,0 +1,11 @@
+png. Maybe you could tell me the code that i could add or edit everytime i add an image in that folder, i can edit the code and add a name and set the image, you know what i mean, like currently you are using the code 
+
+
+
+"const themes = [ { name: 'Developer Desk', url: 'https://images.unsplash.com/photo-1487017159836-4e23ec" etc etc 
+
+
+
+Also, for all three mode, the theme library will have two sub sections, 1st one is "Gradient and Colours" and 2nd one is "Ambient Worlds". So any images from the folder "Themes" with the prefix "Grad_" will go under the gradients and colours sections and any images in that same folder with the prefix "Amb_" will go under the ambient worlds sections. 
+
+Now everytime i add images to that folder, i dont believe that the html will know how many there are in that folder or even be able to add them and name them to the site. So I want you to give the code that i can edit easily and add in the html code so the image is detected and added by the html file. 
