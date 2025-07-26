@@ -9,10 +9,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Updated Font Import: Archivo Black for clock/timers -->
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
             color: white;
+        }
+        /* Apply Archivo Black to the clock and timer elements */
+        #clock, #timer-display, #mini-timer-display {
+            font-family: 'Archivo Black', sans-serif; /* Fallback to a generic sans-serif font */
         }
         #settings-sidebar {
             transition: transform 0.3s ease-in-out;
@@ -159,7 +165,7 @@
     <div id="main-container" class="relative h-full">
         <!-- Background -->
         <div id="background-container" class="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000">
-            <div class="absolute inset-0 bg-black/50"></div>
+            <!-- Removed the darkening overlay div -->
         </div>
 
         <!-- Logo/Name -->
@@ -182,9 +188,11 @@
         <div id="app" class="relative z-10">
             <!-- Home Mode -->
             <div id="home-mode" class="mode-screen hidden-element flex flex-col items-center justify-center h-screen text-center p-4">
-                <h1 id="clock" class="text-8xl md:text-9xl font-bold tracking-tight">12:00:00</h1>
+                <!-- Changed text size from text-8xl md:text-9xl to text-9xl md:text-[10rem] for larger clock -->
+                <h1 id="clock" class="text-9xl md:text-[10rem] font-bold tracking-tight">12:00</h1>
                 <p id="greeting" class="text-2xl md:text-3xl mt-4">Good evening, Farhan.</p>
-                <p id="quote" class="text-lg md:text-xl mt-8 italic max-w-2xl">"The secret of getting ahead is getting started."</p>
+                <!-- Repositioned and bolded quote -->
+                <p id="quote" class="absolute top-4 right-4 text-lg md:text-xl font-bold text-right max-w-xs p-2">"The secret of getting ahead is getting started."</p>
             </div>
 
             <!-- Focus Mode -->
@@ -694,7 +702,8 @@
                 const now = new Date();
                 const hours = now.getHours();
                 const minutes = now.getMinutes().toString().padStart(2, '0');
-                const seconds = now.getSeconds().toString().padStart(2, '0');
+                // Removed seconds from the display
+                // const seconds = now.getSeconds().toString().padStart(2, '0');
                 
                 let displayHours;
                 if (appSettings.clockFormat === '12h') {
@@ -702,7 +711,8 @@
                 } else {
                     displayHours = hours.toString().padStart(2, '0');
                 }
-                clockElement.textContent = `${displayHours}:${minutes}:${seconds}`;
+                // Updated to display only hours and minutes
+                clockElement.textContent = `${displayHours}:${minutes}`;
 
                 let greetingPrefix;
                 if (hours < 12) greetingPrefix = 'Good morning'; else if (hours < 18) greetingPrefix = 'Good afternoon'; else greetingPrefix = 'Good evening';
