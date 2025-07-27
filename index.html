@@ -159,6 +159,132 @@
                 height: 90px; /* Adjusted height for smaller screens */
             }
         }
+
+        /* Custom switch styling */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider:before {
+            -webkit-transform: translateX(16px);
+            -ms-transform: translateX(16px);
+            transform: translateX(16px);
+        }
+
+        /* Music Controls Styling */
+        #global-music-controls {
+            position: fixed;
+            bottom: 1.5rem; /* bottom-6 */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.4); /* Slightly darker, more opaque */
+            backdrop-filter: blur(8px); /* Stronger blur */
+            padding: 0.5rem 1.5rem; /* Thinner height, wider horizontal padding */
+            border-radius: 9999px; /* Pill shape */
+            display: flex;
+            align-items: center;
+            gap: 1rem; /* space-x-4 equivalent */
+            z-index: 20;
+            width: clamp(280px, 60vw, 500px); /* Responsive width: min 280px, max 500px, fluid 60% of viewport width */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+            border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle white border */
+        }
+
+        #global-music-controls button {
+            padding: 0.6rem; /* Slightly larger buttons */
+            border-radius: 9999px; /* Fully rounded buttons */
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        #global-music-controls button:hover {
+            transform: translateY(-2px); /* Slight lift on hover */
+        }
+
+        #global-music-controls button svg {
+            width: 1.5rem; /* Larger icons */
+            height: 1.5rem;
+        }
+
+        #music-play-pause-btn {
+            padding: 0.8rem; /* Larger play/pause button */
+        }
+        #music-play-pause-btn svg {
+            width: 1.75rem; /* Larger play/pause icon */
+            height: 1.75rem;
+        }
+
+        /* Text container for scrolling */
+        #global-music-controls .flex-grow {
+            flex-grow: 1; /* Takes available space */
+            overflow: hidden;
+            position: relative;
+            height: 1.5rem; /* Fixed height for the text area */
+            display: flex; /* Use flex to center short text */
+            align-items: center; /* Vertically center short text */
+            /* justify-content: center; Removed, handled by JS for short text */
+        }
+
+        #music-track-title {
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500; /* font-medium */
+            color: white;
+            white-space: nowrap; /* Prevent wrapping */
+            position: absolute; /* Always absolute for consistent behavior */
+            top: 50%; /* Vertically center */
+            transform: translateY(-50%); /* Vertically center */
+            left: 0; /* Default to left for scrolling */
+            /* Initial position will be handled by JS for animation vs static */
+        }
+
+        /* Marquee animation */
+        @keyframes slideText {
+            0% { transform: translateX(0) translateY(-50%); }
+            50% { transform: translateX(var(--slide-distance)) translateY(-50%); }
+            100% { transform: translateX(0) translateY(-50%); }
+        }
     </style>
 </head>
 <body class="bg-gray-900 overflow-hidden">
@@ -250,6 +376,24 @@
             <button id="focus-btn" class="mode-switcher-btn p-2 rounded-full text-white hover:bg-gray-700 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
             <button id="ambient-btn" class="mode-switcher-btn p-2 rounded-full text-white hover:bg-gray-700 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h8a2 2 0 002-2v-1a2 2 0 012-2h1.945M7.881 4.002l1.414 1.414M14.706 4.002l1.415 1.414M4.222 19.778l1.414-1.414M18.364 19.778l1.414-1.414" /></svg></button>
         </div>
+
+        <!-- Music Controls (Global) -->
+        <div id="global-music-controls" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-black/30 p-3 rounded-lg flex items-center space-x-4 z-20">
+            <button id="music-prev-btn" class="p-2 rounded-full bg-gray-700/60 hover:bg-gray-600/60 transition-colors text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+            </button>
+            <button id="music-play-pause-btn" class="p-3 rounded-full bg-blue-600 hover:bg-blue-500 transition-colors text-white">
+                <svg id="music-play-icon" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <svg id="music-pause-icon" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </button>
+            <button id="music-next-btn" class="p-2 rounded-full bg-gray-700/60 hover:bg-gray-600/60 transition-colors text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+            </button>
+            <!-- Container for the scrolling track title -->
+            <div class="flex-grow overflow-hidden relative">
+                <div id="music-track-title" class="text-sm font-semibold text-white whitespace-nowrap"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Settings Overlay -->
@@ -278,6 +422,8 @@
                      <ul>
                         <li><a href="#clock-settings" class="settings-nav-item block p-2 rounded-md">Clock</a></li>
                         <li><a href="#focus-timer-settings" class="settings-nav-item block p-2 rounded-md">Focus Timer</a></li>
+                        <!-- New: Music Settings Navigation Item -->
+                        <li><a href="#music-settings" class="settings-nav-item block p-2 rounded-md">Music</a></li>
                     </ul>
                 </div>
             </nav>
@@ -377,8 +523,46 @@
                     </div>
                 </div>
             </div>
+
+            <!-- New: Music Settings Page -->
+            <div id="music-settings-page" class="settings-page space-y-6">
+                <h3 class="text-xl font-semibold">Music</h3>
+                <p class="text-sm text-gray-400">Make sure you're logged into your streaming service's web player in the same browser as Flocus. After logging in, hard refresh your Flocus tab (Cmd/Ctrl + Shift + R).</p>
+                <hr class="border-gray-700/50">
+                <div>
+                    <h4 class="text-md font-semibold mb-2 text-gray-300">Custom Playlists</h4>
+                    <p class="text-sm text-gray-400 mb-4">Add your favorite playlist from YouTube or Youtube Music.</p>
+                    <div class="flex space-x-2">
+                        <input type="text" id="music-url-input" class="flex-grow bg-gray-700/70 border-2 border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500" placeholder="Paste playlist or video url here">
+                        <button id="save-music-url-btn" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-semibold transition-colors">Save</button>
+                    </div>
+                </div>
+                <hr class="border-gray-700/50">
+                <div>
+                    <h4 class="text-md font-semibold mb-2 text-gray-300">Player Visibility</h4>
+                    <div class="flex items-center justify-between">
+                        <label for="toggle-music-controls" class="text-gray-300">Show Music Player Controls</label>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-music-controls">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- YouTube Player Iframe (Hidden) -->
+    <!-- This iframe will host the YouTube player. It's set to be invisible (width/height 0)
+         as only audio playback is desired. -->
+    <div class="fixed bottom-0 right-0 w-0 h-0 overflow-hidden">
+        <div id="youtube-player"></div>
+    </div>
+
+    <!-- YouTube IFrame Player API Script -->
+    <!-- This script is required to use the YouTube IFrame Player API.
+         It defines the YT object and calls window.onYouTubeIframeAPIReady when ready. -->
+    <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -421,10 +605,22 @@
             const format12hOption = document.getElementById('format-12h-option');
             const format24hOption = document.getElementById('format-24h-option');
             const pomodoroFocusInput = document.getElementById('pomodoro-focus-input');
-            const pomodoroShortBreakInput = document = document.getElementById('pomodoro-short-break-input');
+            const pomodoroShortBreakInput = document.getElementById('pomodoro-short-break-input'); // Corrected typo
             const pomodoroLongBreakInput = document.getElementById('pomodoro-long-break-input');
             const alertSoundSelect = document.getElementById('alert-sound-select');
             const alertVolumeInput = document.getElementById('alert-volume-input');
+
+            // Music Player Elements
+            const globalMusicControls = document.getElementById('global-music-controls'); // New: Global music controls container
+            const musicUrlInput = document.getElementById('music-url-input');
+            const saveMusicUrlBtn = document.getElementById('save-music-url-btn');
+            const musicPlayPauseBtn = document.getElementById('music-play-pause-btn');
+            const musicPlayIcon = document.getElementById('music-play-icon');
+            const musicPauseIcon = document.getElementById('music-pause-icon');
+            const musicPrevBtn = document.getElementById('music-prev-btn');
+            const musicNextBtn = document.getElementById('music-next-btn');
+            const toggleMusicControls = document.getElementById('toggle-music-controls'); // New: Music controls visibility toggle
+            const musicTrackTitleElement = document.getElementById('music-track-title'); // New: Track title element
 
             // --- Data & State ---
             const quotes = ["The only way to do great work is to love what you do.", "Success is not final, failure is not fatal: it is the courage to continue that counts.", "Believe you can and you're halfway there.", "The future belongs to those who believe in the beauty of their dreams.", "The secret of getting ahead is getting started.", "Don't watch the clock; do what it does. Keep going."];
@@ -511,6 +707,11 @@
             let tasks = [];
             let currentTaskIndex = 0;
 
+            // YouTube Player API variables
+            let player; // This will hold the YT.Player object
+            // No need for currentPlaylist and currentPlaylistIndex here, as the player handles it internally
+            // based on loadPlaylist/videoById.
+
             // --- Utility Functions ---
             const formatTime = (seconds) => { const mins = Math.floor(seconds / 60).toString().padStart(2, '0'); const secs = (seconds % 60).toString().padStart(2, '0'); return `${mins}:${secs}`; };
             const playSound = () => { try { const synth = new Tone.Synth().toDestination(); synth.volume.value = Tone.gainToDb(appSettings.alertVolume); synth.triggerAttackRelease(appSettings.alertSound, "8n", Tone.now()); } catch (e) { console.error("Could not play sound:", e); } };
@@ -534,6 +735,11 @@
                         home: allThemes.find(t => t.type === 'gradient')?.imageUrl || 'https://placehold.co/1920x1080/000000/FFFFFF?text=Home+Theme',
                         focus: allThemes.find(t => t.type === 'gradient')?.imageUrl || 'https://placehold.co/1920x1080/000000/FFFFFF?text=Focus+Theme',
                         ambient: allThemes.find(t => t.type === 'ambient')?.imageUrl || 'https://placehold.co/1920x1080/000000/FFFFFF?text=Ambient+Theme'
+                    },
+                    music: {
+                        currentPlaylistUrl: '',
+                        isPlaying: false,
+                        musicControlsVisible: true // New: Default to visible
                     }
                 };
                 appSettings = savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
@@ -545,6 +751,12 @@
                 alertSoundSelect.value = appSettings.alertSound;
                 alertVolumeInput.value = appSettings.alertVolume;
                 applyClockFormatSelection();
+
+                if (appSettings.music.currentPlaylistUrl) {
+                    musicUrlInput.value = appSettings.music.currentPlaylistUrl;
+                }
+                // Set the toggle switch state based on saved settings
+                toggleMusicControls.checked = appSettings.music.musicControlsVisible;
             }
 
             function applyClockFormatSelection() {
@@ -665,6 +877,197 @@
             function updateSessionTally() { sessionTallyContainer.innerHTML = ''; for (let i = 0; i < pomodoroSessionCount; i++) { const tallyIcon = document.createElement('div'); tallyIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>`; sessionTallyContainer.appendChild(tallyIcon); } }
             function selectTimerMode(mode) { currentTimerMode = mode; Object.values(timerModeButtons).forEach(btn => btn.classList.remove('active')); timerModeButtons[mode].classList.add('active'); pomodoroSessionCount = 0; updateSessionTally(); resetTimer(); }
 
+            // --- Music Player Functions ---
+            window.onYouTubeIframeAPIReady = function() {
+                player = new YT.Player('youtube-player', {
+                    height: '0',
+                    width: '0',
+                    playerVars: {
+                        'autoplay': 0,
+                        'controls': 0,
+                        'disablekb': 1,
+                        'modestbranding': 1,
+                        'rel': 0,
+                        'showinfo': 0,
+                        'loop': 0,
+                        'fs': 0,
+                        'iv_load_policy': 3,
+                        'enablejsapi': 1,
+                    },
+                    events: {
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
+            };
+
+            function onPlayerReady(event) {
+                console.log('YouTube Player is ready.');
+                if (appSettings.music.currentPlaylistUrl) {
+                    loadMusic(appSettings.music.currentPlaylistUrl);
+                    if (appSettings.music.isPlaying) {
+                        playMusic();
+                    }
+                }
+                updateMusicPlayPauseButtons();
+                updateMusicControlsVisibility(); // Ensure visibility is correct on load
+            }
+
+            function onPlayerStateChange(event) {
+                console.log('Player state changed:', event.data);
+                if (event.data === YT.PlayerState.ENDED) {
+                    playNextMusic();
+                } else if (event.data === YT.PlayerState.PLAYING) {
+                    appSettings.music.isPlaying = true;
+                    // When a new video starts playing, update its title
+                    if (player && typeof player.getVideoData === 'function') {
+                        const videoData = player.getVideoData();
+                        if (videoData && videoData.title) {
+                            updateTrackTitle(videoData.title);
+                        } else {
+                            updateTrackTitle('Unknown Title'); // Fallback
+                        }
+                    }
+                } else {
+                    appSettings.music.isPlaying = false;
+                }
+                saveSettings();
+                updateMusicPlayPauseButtons();
+            }
+
+            function extractYouTubeId(url) {
+                let videoId = null;
+                let playlistId = null;
+
+                const videoRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+                const videoMatch = url.match(videoRegex);
+                if (videoMatch && videoMatch[1]) {
+                    videoId = videoMatch[1];
+                }
+
+                const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/i;
+                const playlistMatch = url.match(playlistRegex);
+                if (playlistMatch && playlistMatch[1]) {
+                    playlistId = playlistMatch[1];
+                }
+
+                return { videoId, playlistId };
+            }
+
+            function loadMusic(url) {
+                if (!player) {
+                    console.warn('YouTube Player not initialized yet.');
+                    return;
+                }
+                const { videoId, playlistId } = extractYouTubeId(url);
+                if (playlistId) {
+                    player.loadPlaylist({
+                        list: playlistId,
+                        listType: 'playlist',
+                        index: 0,
+                        startSeconds: 0,
+                        suggestedQuality: 'small'
+                    });
+                    console.log('Loading playlist:', playlistId);
+                } else if (videoId) {
+                    player.loadVideoById(videoId, 0, 'small');
+                    console.log('Loading video:', videoId);
+                } else {
+                    console.error('Invalid YouTube URL provided:', url);
+                    updateTrackTitle('Invalid URL'); // Display error in title area
+                }
+            }
+
+            function playMusic() {
+                if (player && typeof player.playVideo === 'function') {
+                    player.playVideo();
+                    console.log('Playing music.');
+                }
+            }
+
+            function pauseMusic() {
+                if (player && typeof player.pauseVideo === 'function') {
+                    player.pauseVideo();
+                    console.log('Pausing music.');
+                }
+            }
+
+            function playNextMusic() {
+                if (player && typeof player.nextVideo === 'function') {
+                    player.nextVideo();
+                    console.log('Playing next music.');
+                }
+            }
+
+            function playPreviousMusic() {
+                if (player && typeof player.previousVideo === 'function') {
+                    player.previousVideo();
+                    console.log('Playing previous music.');
+                }
+            }
+
+            function updateMusicPlayPauseButtons() {
+                if (appSettings.music.isPlaying) {
+                    musicPlayIcon.classList.add('hidden');
+                    musicPauseIcon.classList.remove('hidden');
+                } else {
+                    musicPlayIcon.classList.remove('hidden');
+                    musicPauseIcon.classList.add('hidden');
+                }
+            }
+
+            // Function to control music controls visibility
+            function updateMusicControlsVisibility() {
+                if (appSettings.music.musicControlsVisible) {
+                    globalMusicControls.classList.remove('hidden-element');
+                    globalMusicControls.classList.add('visible-element');
+                } else {
+                    globalMusicControls.classList.add('hidden-element');
+                    globalMusicControls.classList.remove('visible-element');
+                }
+            }
+
+            // New function to update the track title and apply scrolling
+            function updateTrackTitle(title) {
+                musicTrackTitleElement.textContent = title;
+                musicTrackTitleElement.style.animation = 'none'; // Reset animation
+                // Always position absolute for consistent measurement and control
+                musicTrackTitleElement.style.position = 'absolute'; 
+                musicTrackTitleElement.style.top = '50%'; // Keep vertically centered
+                musicTrackTitleElement.style.transform = 'translateY(-50%)'; // Vertically center
+                musicTrackTitleElement.style.left = '0'; // Default to left for scrolling
+
+                // Use a small timeout to ensure reflow for accurate measurement
+                setTimeout(() => {
+                    const containerWidth = musicTrackTitleElement.parentElement.clientWidth;
+                    const textWidth = musicTrackTitleElement.scrollWidth;
+
+                    if (textWidth > containerWidth) {
+                        // Text is long, apply scrolling animation
+                        const speed = 30; // pixels per second
+                        // Calculate duration based on the full text length for a smooth, consistent speed
+                        const duration = textWidth / speed; 
+                        
+                        // Adjust slide distance to scroll the full text off-screen and then back
+                        // The text needs to move from 0 to -(textWidth - containerWidth) to show the end
+                        // and then back. We add a small buffer for visual separation.
+                        const slideDistance = textWidth - containerWidth + 20; // +20px for buffer
+
+                        musicTrackTitleElement.style.setProperty('--slide-distance', `-${slideDistance}px`);
+                        musicTrackTitleElement.style.animation = `slideText ${duration}s linear infinite alternate`;
+                        // Ensure parent container aligns to start for scrolling text
+                        musicTrackTitleElement.parentElement.style.justifyContent = 'flex-start';
+                    } else {
+                        // Text is short, center it and remove animation
+                        musicTrackTitleElement.style.animation = 'none';
+                        musicTrackTitleElement.style.left = '50%'; // Center horizontally
+                        musicTrackTitleElement.style.transform = 'translate(-50%, -50%)'; // Center both
+                        // Ensure parent container centers content for short text
+                        musicTrackTitleElement.parentElement.style.justifyContent = 'center';
+                    }
+                }, 50); // Small delay to ensure measurements are accurate after DOM update
+            }
+
             // --- General Functions ---
             function switchMode(targetMode) {
                 currentAppMode = targetMode;
@@ -685,16 +1088,15 @@
                     }
                 });
                 // Apply the theme for the current mode
-                backgroundContainer.style.backgroundImage = `url('${appSettings.themes[targetMode]}')`;
+                backgroundContainer.style.backgroundImage = `url('${appSettings.themes[currentAppMode]}')`;
                 updateTimerDisplay();
                 updateStartPauseButtons();
+                updateMusicControlsVisibility(); // Ensure visibility is correct after mode switch
             }
             function updateTime() {
                 const now = new Date();
                 const hours = now.getHours();
                 const minutes = now.getMinutes().toString().padStart(2, '0');
-                // Removed seconds from the display
-                // const seconds = now.getSeconds().toString().padStart(2, '0');
                 
                 let displayHours;
                 if (appSettings.clockFormat === '12h') {
@@ -702,7 +1104,6 @@
                 } else {
                     displayHours = hours.toString().padStart(2, '0');
                 }
-                // Updated to display only hours and minutes
                 clockElement.textContent = `${displayHours}:${minutes}`;
 
                 let greetingPrefix;
@@ -736,17 +1137,70 @@
             format12hOption.addEventListener('click', () => { appSettings.clockFormat = '12h'; saveSettings(); applyClockFormatSelection(); updateTime(); });
             format24hOption.addEventListener('click', () => { appSettings.clockFormat = '24h'; saveSettings(); applyClockFormatSelection(); updateTime(); });
 
+            // Music Player Event Listeners
+            saveMusicUrlBtn.addEventListener('click', () => {
+                const url = musicUrlInput.value.trim();
+                if (url) {
+                    appSettings.music.currentPlaylistUrl = url;
+                    saveSettings();
+                    loadMusic(url);
+                    playMusic();
+                    appSettings.music.isPlaying = true;
+                    updateMusicPlayPauseButtons();
+                    closeSettings();
+                } else {
+                    console.warn('Music URL is empty. Please paste a YouTube video or playlist URL.');
+                    updateTrackTitle('No URL provided'); // Display feedback for empty URL
+                }
+            });
+
+            musicPlayPauseBtn.addEventListener('click', () => {
+                if (appSettings.music.isPlaying) {
+                    pauseMusic();
+                    appSettings.music.isPlaying = false;
+                } else {
+                    playMusic();
+                    appSettings.music.isPlaying = true;
+                }
+                saveSettings();
+                updateMusicPlayPauseButtons();
+            });
+
+            musicPrevBtn.addEventListener('click', () => {
+                playPreviousMusic();
+                appSettings.music.isPlaying = true; 
+                saveSettings();
+                updateMusicPlayPauseButtons();
+            });
+
+            musicNextBtn.addEventListener('click', () => {
+                playNextMusic();
+                appSettings.music.isPlaying = true; 
+                saveSettings();
+                updateMusicPlayPauseButtons();
+            });
+
+            // Music controls visibility toggle listener
+            toggleMusicControls.addEventListener('change', (e) => {
+                appSettings.music.musicControlsVisible = e.target.checked;
+                saveSettings();
+                updateMusicControlsVisibility();
+            });
+
+
             // --- Initial Setup ---
             loadSettings();
             switchMode('home');
             updateTime();
             setInterval(updateTime, 1000);
             displayRandomQuote();
-            populateAllThemePickers(); // This now populates all three theme pickers (Home, Focus, Ambient)
+            populateAllThemePickers();
             selectTimerMode('pomodoro');
             renderTodoList();
             updateStartPauseButtons();
-            switchSettingsPage('home-theme-page'); // Default to Home Theme settings page on open
+            switchSettingsPage('home-theme-page');
+            updateMusicPlayPauseButtons();
+            updateMusicControlsVisibility(); // Initial call to set visibility based on settings
         });
     </script>
 </body>
