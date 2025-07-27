@@ -124,7 +124,7 @@
             height: 110px; /* Increased height for preview images */
             object-fit: cover;
             border-radius: 0.5rem; /* rounded-lg from clock images */
-            margin-bottom: 4px; /* Reduced margin to bring text closer */
+            margin-bottom: 0px; /* Changed from 4px to 0px */
             background-color: #333; /* Darker background for image itself */
             border: 2px solid transparent; /* Start with transparent border */
             transition: border-color 0.2s ease-in-out, border-width 0.2s ease-in-out; /* Smooth transitions for border */
@@ -145,6 +145,7 @@
             font-weight: 700; /* Made text bold */
             color: #ccc; /* Lighter text for dark background */
             word-break: break-word; /* Allow long names to wrap */
+            margin-top: 0px; /* Added to remove any default top margin */
         }
 
         /* Responsive adjustments */
@@ -581,6 +582,7 @@
                         <input type="text" id="music-url-input" class="flex-grow bg-gray-700/70 border-2 border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500" placeholder="Paste playlist or video url here">
                         <button id="save-music-url-btn" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-semibold transition-colors">Save</button>
                     </div>
+                    <button id="clear-music-btn" class="mt-4 px-5 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white font-semibold transition-colors w-full">Clear Music</button>
                 </div>
                 <hr class="border-gray-700/50">
                 <div>
@@ -671,6 +673,7 @@
             const globalMusicControls = document.getElementById('global-music-controls'); // New: Global music controls container
             const musicUrlInput = document.getElementById('music-url-input');
             const saveMusicUrlBtn = document.getElementById('save-music-url-btn');
+            const clearMusicBtn = document.getElementById('clear-music-btn'); // New: Clear Music button
             const musicPlayPauseBtn = document.getElementById('music-play-pause-btn');
             const musicPlayIcon = document.getElementById('music-play-icon');
             const musicPauseIcon = document.getElementById('music-pause-icon');
@@ -693,7 +696,9 @@
             // 'name': The display name for the theme on the settings page.
             // 'imageUrl': The path to your local image (e.g., 'Themes/Grad_Sunrise.jpg') OR a direct URL (e.g., Unsplash link).
             // 'youtubeId': (Optional, for type 'live') The YouTube video ID for the live wallpaper.
+            // 'videoUrl': (Optional, for mediaType 'video') The path to your local MP4 video file.
             // 'type': 'gradient', 'ambient', or 'live' to categorize it for display in the settings.
+            // 'mediaType': (Optional) 'video' if it's an MP4 video, otherwise it's implicitly an image.
             const allThemes = [
                 // Gradient and Colours Themes (prefix Grad_)
                 {
@@ -749,6 +754,28 @@
                     name: 'Austrian Alps',
                     imageUrl: 'Themes/Amb_2AustrianAlps.png', // Unsplash URL
                     type: 'ambient'
+                },
+                {
+                    id: 'Amb_DropletsGif',
+                    name: 'Droplets Gif',
+                    imageUrl: 'Themes/Amb_DropletsGif.gif', // Unsplash URL
+                    type: 'ambient'
+                },
+                {
+                    id: 'Amb_DropletsMP4',
+                    name: 'Droplets',
+                    imageUrl: 'Themes/Amb_PreviewDropletsGif.gif', // Example: a static image preview for your MP4
+                    videoUrl: 'Themes/Amb_DropletsMP4.mp4', // Your actual MP4 file path
+                    type: 'ambient', // Categorizes it under "Ambient Worlds"
+                    mediaType: 'video' // Indicates it's a video, not a static image
+                },
+                {
+                    id: 'Amb_FallingStars',
+                    name: 'Falling Stars',
+                    imageUrl: 'https://placehold.co/150x90/e0e0e0/555555?text=Falling+Stars+Preview', // Example: a static image preview for your MP4
+                    videoUrl: 'Themes/Falling_Stars.mp4', // Example local MP4 video
+                    type: 'ambient', // Categorizes it under "Ambient Worlds"
+                    mediaType: 'video' // Indicates it's a video, not a static image
                 },
                 // Add more ambient themes here following the same structure
                 // { id: 'Amb_YourNewTheme', name: 'Your New Theme', imageUrl: 'Themes/Amb_YourNewTheme.jpg', type: 'ambient' },
@@ -818,9 +845,9 @@
                     },
                     music: {
                         currentPlaylistUrl: '',
-                        isPlaying: false,
+                        isPlaying: false, // Default to false
                         musicControlsVisible: true,
-                        playLiveWallpaperAudio: false // New: Default to OFF
+                        playLiveWallpaperAudio: false
                     }
                 };
                 
@@ -835,6 +862,8 @@
                     }
                     if (parsedSavedSettings.music) {
                         appSettings.music = { ...defaultSettings.music, ...parsedSavedSettings.music };
+                        // Force isPlaying to false on load to prevent autoplay
+                        appSettings.music.isPlaying = false; 
                     }
                 }
                 
@@ -848,6 +877,9 @@
 
                 if (appSettings.music.currentPlaylistUrl) {
                     musicUrlInput.value = appSettings.music.currentPlaylistUrl;
+                    updateTrackTitle('Music loaded, click play'); // Indicate music is loaded but not playing
+                } else {
+                    updateTrackTitle('No music loaded');
                 }
                 toggleMusicControls.checked = appSettings.music.musicControlsVisible;
                 toggleLiveWallpaperAudio.checked = appSettings.music.playLiveWallpaperAudio; // Set state for new toggle
@@ -873,80 +905,109 @@
                 const container = document.getElementById(containerId);
                 container.innerHTML = ''; // Clear previous options
 
-                const gradientThemes = allThemes.filter(theme => theme.type === 'gradient');
-                const ambientThemes = allThemes.filter(theme => theme.type === 'ambient');
-                const liveThemes = allThemes.filter(theme => theme.type === 'live'); // New: Live themes
-
-                const appendThemes = (themesArray, sectionTitle) => {
-                    if (themesArray.length > 0) {
-                        const sectionHeader = document.createElement('h4');
-                        sectionHeader.className = 'text-lg font-semibold text-gray-300 col-span-full mt-4 mb-2';
-                        sectionHeader.textContent = sectionTitle;
-                        container.appendChild(sectionHeader);
-
-                        themesArray.forEach(theme => {
-                            const themeDiv = document.createElement('div');
-                            themeDiv.className = 'theme-item cursor-pointer p-2';
-                            
-                            // Determine if this theme is currently selected
-                            let isSelected = false;
-                            const currentThemeSetting = appSettings.themes[themeModeKey];
-                            if (currentThemeSetting) {
-                                if (theme.type === 'live' && currentThemeSetting.type === 'live' && currentThemeSetting.youtubeId === theme.youtubeId) {
-                                    isSelected = true;
-                                } else if (theme.type !== 'live' && currentThemeSetting.type === 'image' && currentThemeSetting.url === theme.imageUrl) {
-                                    isSelected = true;
-                                }
-                            }
-                            
-                            if (isSelected) {
-                                themeDiv.classList.add('selected');
-                            }
-
-                            // Get image URL for preview
-                            let previewImageUrl;
-                            if (theme.type === 'live') {
-                                // Use YouTube thumbnail for live wallpapers
-                                previewImageUrl = `https://img.youtube.com/vi/${theme.youtubeId}/mqdefault.jpg`; 
-                            } else {
-                                previewImageUrl = theme.imageUrl;
-                            }
-
-                            themeDiv.innerHTML = `
-                                <img src="${previewImageUrl}" 
-                                     alt="${theme.name}" 
-                                     class="w-full h-24 object-cover rounded-lg aspect-[141/88] bg-gray-800">
-                                <span class="text-center text-sm mt-2 text-gray-300">${theme.name}</span>
-                            `;
-                            
-                            const imgElement = themeDiv.querySelector('img');
-                            if (isSelected) {
-                                imgElement.classList.add('selected');
-                            }
-                            imgElement.onerror = function() {
-                                this.onerror = null;
-                                this.src = `https://placehold.co/150x90/e0e0e0/555555?text=${encodeURIComponent(theme.name.replace(/\s/g, '+'))}`;
-                                this.alt = `Image not found for ${theme.name}`;
-                            };
-
-                            themeDiv.addEventListener('click', () => {
-                                if (theme.type === 'live') {
-                                    appSettings.themes[themeModeKey] = { type: 'live', youtubeId: theme.youtubeId };
-                                } else {
-                                    appSettings.themes[themeModeKey] = { type: 'image', url: theme.imageUrl };
-                                }
-                                saveSettings();
-                                switchMode(currentAppMode); // Re-apply current mode to update background
-                                populateAllThemePickers(); // Re-render all theme pickers to update selections
-                            });
-                            container.appendChild(themeDiv);
-                        });
+                // Filter themes based on the primary type for each section
+                const themesForSection = allThemes.filter(theme => {
+                    if (themeModeKey === 'home' || themeModeKey === 'focus') {
+                        // For Home and Focus, show Gradient and Ambient (including videos categorized as such)
+                        return theme.type === 'gradient' || theme.type === 'ambient';
                     }
-                };
+                    if (themeModeKey === 'ambient') {
+                        // For Ambient, show Ambient and Live (including videos categorized as ambient)
+                        return theme.type === 'ambient' || theme.type === 'live';
+                    }
+                    return false;
+                });
 
-                appendThemes(gradientThemes, 'Gradient and Colours');
-                appendThemes(ambientThemes, 'Ambient Worlds');
-                appendThemes(liveThemes, 'Live Wallpapers'); // New: Append live themes
+                // Group themes by their 'type' to create subheadings (e.g., 'Gradient and Colours', 'Ambient Worlds', 'Live Wallpapers')
+                const groupedThemes = themesForSection.reduce((acc, theme) => {
+                    let groupKey;
+                    if (theme.type === 'gradient') {
+                        groupKey = 'Gradient and Colours';
+                    } else if (theme.type === 'ambient') {
+                        groupKey = 'Ambient Worlds';
+                    } else if (theme.type === 'live') {
+                        groupKey = 'Live Wallpapers';
+                    }
+                    if (!acc[groupKey]) {
+                        acc[groupKey] = [];
+                    }
+                    acc[groupKey].push(theme);
+                    return acc;
+                }, {});
+
+                // Render each group
+                for (const groupTitle in groupedThemes) {
+                    const sectionHeader = document.createElement('h4');
+                    sectionHeader.className = 'text-lg font-semibold text-gray-300 col-span-full mt-4 mb-2';
+                    sectionHeader.textContent = groupTitle;
+                    container.appendChild(sectionHeader);
+
+                    groupedThemes[groupTitle].forEach(theme => {
+                        const themeDiv = document.createElement('div');
+                        themeDiv.className = 'theme-item cursor-pointer p-2';
+                        
+                        // Determine if this theme is currently selected
+                        let isSelected = false;
+                        const currentThemeSetting = appSettings.themes[themeModeKey];
+                        if (currentThemeSetting) {
+                            if (theme.type === 'live' && currentThemeSetting.type === 'live' && currentThemeSetting.youtubeId === theme.youtubeId) {
+                                isSelected = true;
+                            } else if (theme.mediaType === 'video' && currentThemeSetting.type === 'video' && currentThemeSetting.videoUrl === theme.videoUrl) {
+                                isSelected = true;
+                            } else if (theme.mediaType !== 'video' && currentThemeSetting.type === 'image' && currentThemeSetting.url === theme.imageUrl) {
+                                isSelected = true;
+                            }
+                        }
+                        
+                        if (isSelected) {
+                            themeDiv.classList.add('selected');
+                        }
+
+                        // Get image URL for preview
+                        let previewImageUrl;
+                        if (theme.type === 'live') {
+                            // Use YouTube thumbnail for live wallpapers
+                            previewImageUrl = `https://img.youtube.com/vi/${theme.youtubeId}/mqdefault.jpg`; 
+                        } else if (theme.mediaType === 'video') {
+                            // Use theme.imageUrl for local video previews, fallback to generic placeholder
+                            previewImageUrl = theme.imageUrl || `https://placehold.co/150x90/e0e0e0/555555?text=VIDEO`;
+                        }
+                        else {
+                            previewImageUrl = theme.imageUrl;
+                        }
+
+                        themeDiv.innerHTML = `
+                            <img src="${previewImageUrl}" 
+                                 alt="${theme.name}" 
+                                 class="w-full h-24 object-cover rounded-lg aspect-[141/88] bg-gray-800">
+                            <span class="text-center text-sm mt-0 text-gray-300">${theme.name}</span>
+                        `;
+                        
+                        const imgElement = themeDiv.querySelector('img');
+                        if (isSelected) {
+                            imgElement.classList.add('selected');
+                        }
+                        imgElement.onerror = function() {
+                            this.onerror = null;
+                            this.src = `https://placehold.co/150x90/e0e0e0/555555?text=${encodeURIComponent(theme.name.replace(/\s/g, '+'))}`;
+                            this.alt = `Image not found for ${theme.name}`;
+                        };
+
+                        themeDiv.addEventListener('click', () => {
+                            if (theme.type === 'live') {
+                                appSettings.themes[themeModeKey] = { type: 'live', youtubeId: theme.youtubeId };
+                            } else if (theme.mediaType === 'video') {
+                                appSettings.themes[themeModeKey] = { type: 'video', videoUrl: theme.videoUrl, imageUrl: theme.imageUrl }; // Save imageUrl for consistency
+                            } else {
+                                appSettings.themes[themeModeKey] = { type: 'image', url: theme.imageUrl };
+                            }
+                            saveSettings();
+                            switchMode(currentAppMode); // Re-apply current mode to update background
+                            populateAllThemePickers(); // Re-render all theme pickers to update selections
+                        });
+                        container.appendChild(themeDiv);
+                    });
+                }
             }
 
             function populateAllThemePickers() {
@@ -1036,11 +1097,9 @@
                 console.log('Main YouTube Player is ready.');
                 if (appSettings.music.currentPlaylistUrl) {
                     loadMusic(appSettings.music.currentPlaylistUrl);
-                    if (appSettings.music.isPlaying) {
-                        playMusic();
-                    }
+                    // Do NOT call playMusic() here. Music should only play when user clicks.
                 }
-                updateMusicPlayPauseButtons();
+                updateMusicPlayPauseButtons(); // This will now correctly show "Play" icon
                 updateMusicControlsVisibility(); // Ensure visibility is correct on load
                 manageAudioPriority(); // Initial audio priority check
             }
@@ -1242,10 +1301,10 @@
             // New function for audio priority management
             function manageAudioPriority() {
                 const currentThemeSetting = appSettings.themes[currentAppMode];
-                const isLiveWallpaperActive = currentThemeSetting && currentThemeSetting.type === 'live';
+                const isLiveWallpaperActive = currentThemeSetting && (currentThemeSetting.type === 'live' || currentThemeSetting.type === 'video');
 
                 if (appSettings.music.playLiveWallpaperAudio && isLiveWallpaperActive) {
-                    // Live wallpaper audio is ON and a live wallpaper is active
+                    // Live wallpaper or local video audio is ON and active
                     if (player && typeof player.mute === 'function') {
                         player.mute(); // Mute main music player
                         player.pauseVideo(); // Pause main music player
@@ -1255,15 +1314,26 @@
                     if (liveWallpaperPlayer && typeof liveWallpaperPlayer.unMute === 'function') {
                         liveWallpaperPlayer.unMute(); // Unmute live wallpaper audio
                     }
+                    // Mute local video if it exists
+                    const localVideo = backgroundContainer.querySelector('video');
+                    if (localVideo) {
+                        localVideo.muted = false;
+                    }
+
                     // Disable main music player controls
                     musicPrevBtn.disabled = true;
                     musicPlayPauseBtn.disabled = true;
                     musicNextBtn.disabled = true;
                     globalMusicControls.classList.add('opacity-50', 'pointer-events-none'); // Visual disable
                 } else {
-                    // Live wallpaper audio is OFF or no live wallpaper is active
+                    // Live wallpaper/local video audio is OFF or no such background is active
                     if (liveWallpaperPlayer && typeof liveWallpaperPlayer.mute === 'function') {
                         liveWallpaperPlayer.mute(); // Mute live wallpaper audio
+                    }
+                    // Mute local video if it exists
+                    const localVideo = backgroundContainer.querySelector('video');
+                    if (localVideo) {
+                        localVideo.muted = true;
                     }
                     // Enable main music player controls
                     musicPrevBtn.disabled = false;
@@ -1296,28 +1366,47 @@
                     }
                 });
 
+                // Clear existing background (image, live wallpaper, or video)
+                backgroundContainer.style.backgroundImage = 'none';
+                liveWallpaperPlayerContainer.classList.add('hidden-element');
+                liveWallpaperPlayerContainer.classList.remove('visible-element');
+                if (liveWallpaperPlayer && typeof liveWallpaperPlayer.stopVideo === 'function') {
+                    liveWallpaperPlayer.stopVideo();
+                }
+
+                // Remove any existing video element
+                const existingVideo = backgroundContainer.querySelector('video');
+                if (existingVideo) {
+                    existingVideo.pause();
+                    existingVideo.remove();
+                }
+
                 // Handle background based on theme type
                 const selectedTheme = appSettings.themes[targetMode];
-                if (selectedTheme && selectedTheme.type === 'live') {
-                    backgroundContainer.style.backgroundImage = 'none'; // Hide image background
-                    if (liveWallpaperPlayer) {
-                        loadLiveWallpaper(selectedTheme.youtubeId); // Load live video
-                    }
-                } else if (selectedTheme && selectedTheme.type === 'image') {
-                    liveWallpaperPlayerContainer.classList.add('hidden-element'); // Hide live player
-                    liveWallpaperPlayerContainer.classList.remove('visible-element');
-                    backgroundContainer.style.backgroundImage = `url('${selectedTheme.url}')`; // Set image background
-                    if (liveWallpaperPlayer && typeof liveWallpaperPlayer.stopVideo === 'function') {
-                         liveWallpaperPlayer.stopVideo(); // Stop live wallpaper video
+                if (selectedTheme) {
+                    if (selectedTheme.type === 'live') {
+                        if (liveWallpaperPlayer) {
+                            loadLiveWallpaper(selectedTheme.youtubeId); // Load live video
+                        }
+                    } else if (selectedTheme.type === 'video') { // Check for mediaType 'video'
+                        const videoElement = document.createElement('video');
+                        videoElement.src = selectedTheme.videoUrl;
+                        videoElement.autoplay = true;
+                        videoElement.loop = true;
+                        videoElement.muted = true; // Start muted, controlled by manageAudioPriority
+                        videoElement.playsInline = true; // For iOS compatibility
+                        videoElement.className = 'absolute inset-0 w-full h-full object-cover'; // Cover the whole background
+                        backgroundContainer.appendChild(videoElement);
+                        videoElement.play().catch(error => {
+                            console.warn('Video autoplay prevented:', error);
+                            // Optionally show a play button or message if autoplay fails
+                        });
+                    } else if (selectedTheme.type === 'image') { // This covers gradient and ambient images
+                        backgroundContainer.style.backgroundImage = `url('${selectedTheme.url}')`; // Set image background
                     }
                 } else {
                     // Fallback if no theme or invalid type
-                    liveWallpaperPlayerContainer.classList.add('hidden-element');
-                    liveWallpaperPlayerContainer.classList.remove('visible-element');
-                    backgroundContainer.style.backgroundImage = 'none'; // Or a default image
-                    if (liveWallpaperPlayer && typeof liveWallpaperPlayer.stopVideo === 'function') {
-                         liveWallpaperPlayer.stopVideo(); // Stop live wallpaper video
-                    }
+                    backgroundContainer.style.backgroundImage = 'none';
                 }
                 
                 updateTimerDisplay();
@@ -1374,11 +1463,11 @@
                 const url = musicUrlInput.value.trim();
                 if (url) {
                     appSettings.music.currentPlaylistUrl = url;
+                    appSettings.music.isPlaying = false; // Don't autoplay immediately after saving
                     saveSettings();
                     loadMusic(url);
-                    playMusic();
-                    appSettings.music.isPlaying = true;
-                    updateMusicPlayPauseButtons();
+                    updateMusicPlayPauseButtons(); // Update UI to show "Play"
+                    updateTrackTitle('Music loaded, click play');
                     closeSettings();
                 } else {
                     console.warn('Music URL is empty. Please paste a YouTube video or playlist URL.');
@@ -1386,13 +1475,32 @@
                 }
             });
 
+            clearMusicBtn.addEventListener('click', () => {
+                appSettings.music.currentPlaylistUrl = '';
+                appSettings.music.isPlaying = false;
+                saveSettings();
+                if (player && typeof player.stopVideo === 'function') {
+                    player.stopVideo();
+                } else if (player && typeof player.cueVideoById === 'function') {
+                    player.cueVideoById(null); // Clear the video
+                }
+                musicUrlInput.value = '';
+                updateMusicPlayPauseButtons();
+                updateTrackTitle('No music loaded');
+            });
+
             musicPlayPauseBtn.addEventListener('click', () => {
                 if (appSettings.music.isPlaying) {
                     pauseMusic();
                     appSettings.music.isPlaying = false;
                 } else {
-                    playMusic();
-                    appSettings.music.isPlaying = true;
+                    if (appSettings.music.currentPlaylistUrl) { // Only play if a URL is loaded
+                        playMusic();
+                        appSettings.music.isPlaying = true;
+                    } else {
+                        console.warn('No music URL loaded to play.');
+                        updateTrackTitle('No music to play');
+                    }
                 }
                 saveSettings();
                 updateMusicPlayPauseButtons();
