@@ -274,9 +274,9 @@
             white-space: nowrap; /* Prevent wrapping */
             position: absolute; /* Always absolute for consistent behavior */
             top: 50%; /* Vertically center */
-            transform: translateY(-50%); /* Vertically center */
-            left: 0; /* Default to left for scrolling */
-            /* Initial position will be handled by JS for animation vs static */
+            /* transform: translateY(-50%); This will be part of the base transform, not animation */
+            left: 0; /* Default to left for scrolling, or adjusted for centering */
+            transition: transform 0.3s ease-in-out; /* Smooth transition for centering */
         }
 
         /* Marquee animation */
@@ -284,6 +284,46 @@
             0% { transform: translateX(0) translateY(-50%); }
             50% { transform: translateX(var(--slide-distance)) translateY(-50%); }
             100% { transform: translateX(0) translateY(-50%); }
+        }
+
+        /* Live Wallpaper Player Styling */
+        #live-wallpaper-player-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0; /* Behind other content */
+            overflow: hidden;
+            pointer-events: none; /* Allow clicks to pass through */
+            opacity: 0; /* Start hidden */
+            transition: opacity 0.5s ease-in-out; /* Smooth transition */
+        }
+
+        #live-wallpaper-player-container.visible-element {
+            opacity: 1; /* Make visible */
+        }
+
+        /* Ensures the iframe covers the container without black bars */
+        #live-wallpaper-player iframe {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            min-width: 100%;
+            min-height: 100%;
+            /* These aspect ratio rules ensure the video covers the screen */
+            /* For 16:9 videos, if screen is wider than 16:9, height is 100% and width expands */
+            /* If screen is taller than 16:9, width is 100% and height expands */
+            width: 100vw;
+            height: 56.25vw; /* 9/16 * 100vw */
+        }
+
+        @media (min-aspect-ratio: 16/9) {
+            #live-wallpaper-player iframe {
+                width: 177.77777778vh; /* 16/9 * 100vh */
+                height: 100vh;
+            }
         }
     </style>
 </head>
@@ -294,6 +334,11 @@
         <!-- Background -->
         <div id="background-container" class="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000">
             <!-- Removed the darkening overlay div -->
+        </div>
+
+        <!-- Live Wallpaper Player Iframe Container -->
+        <div id="live-wallpaper-player-container" class="fixed inset-0 z-0 hidden-element">
+            <div id="live-wallpaper-player"></div>
         </div>
 
         <!-- Logo/Name -->
@@ -548,6 +593,17 @@
                         </label>
                     </div>
                 </div>
+                <hr class="border-gray-700/50">
+                <div>
+                    <h4 class="text-md font-semibold mb-2 text-gray-300">Live Wallpaper Audio</h4>
+                    <div class="flex items-center justify-between">
+                        <label for="toggle-live-wallpaper-audio" class="text-gray-300">Play Audio from Live Wallpaper</label>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-live-wallpaper-audio">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -591,9 +647,10 @@
             const timerModeButtons = { pomodoro: document.getElementById('pomodoro-mode-btn'), countdown: document.getElementById('countdown-mode-btn'), stopwatch: document.getElementById('stopwatch-mode-btn'), animedoro: document.getElementById('animedoro-mode-btn') };
 
             const miniTimerDisplay = document.getElementById('mini-timer-display');
-            const miniStartPauseBtn = document.getElementById('mini-start-pause-btn');
             const miniStartIcon = document.getElementById('mini-start-icon');
             const miniPauseIcon = document.getElementById('mini-pause-icon');
+            const miniStartPauseBtn = document.getElementById('mini-start-pause-btn');
+
 
             const todoContainer = document.getElementById('todo-list-container');
             const addTaskBtn = document.getElementById('add-task-btn');
@@ -622,6 +679,11 @@
             const toggleMusicControls = document.getElementById('toggle-music-controls'); // New: Music controls visibility toggle
             const musicTrackTitleElement = document.getElementById('music-track-title'); // New: Track title element
 
+            // New Live Wallpaper Player Elements
+            const liveWallpaperPlayerContainer = document.getElementById('live-wallpaper-player-container');
+            const toggleLiveWallpaperAudio = document.getElementById('toggle-live-wallpaper-audio');
+            let liveWallpaperPlayer; // Will hold the YT.Player object for live wallpaper
+
             // --- Data & State ---
             const quotes = ["The only way to do great work is to love what you do.", "Success is not final, failure is not fatal: it is the courage to continue that counts.", "Believe you can and you're halfway there.", "The future belongs to those who believe in the beauty of their dreams.", "The secret of getting ahead is getting started.", "Don't watch the clock; do what it does. Keep going."];
             
@@ -630,11 +692,10 @@
             // 'id': A unique identifier for the theme (e.g., matching the filename without extension).
             // 'name': The display name for the theme on the settings page.
             // 'imageUrl': The path to your local image (e.g., 'Themes/Grad_Sunrise.jpg') OR a direct URL (e.g., Unsplash link).
-            //             Ensure the file extension (.jpg, .png, .gif, .webp) in imageUrl matches your actual file.
-            // 'type': 'gradient' or 'ambient' to categorize it for display in the settings.
+            // 'youtubeId': (Optional, for type 'live') The YouTube video ID for the live wallpaper.
+            // 'type': 'gradient', 'ambient', or 'live' to categorize it for display in the settings.
             const allThemes = [
                 // Gradient and Colours Themes (prefix Grad_)
-                // New themes added below:
                 {
                     id: 'Grad_AuraTwilight',
                     name: 'Aura Twilight',
@@ -691,6 +752,27 @@
                 },
                 // Add more ambient themes here following the same structure
                 // { id: 'Amb_YourNewTheme', name: 'Your New Theme', imageUrl: 'Themes/Amb_YourNewTheme.jpg', type: 'ambient' },
+
+                // Live Wallpapers (prefix Live_)
+                {
+                    id: 'Live_1Ghibli',
+                    name: 'Less Talk, More Action',
+                    youtubeId: '9kzE8isXlQY', // Example YouTube video ID for a rainy cafe ambiance
+                    type: 'live'
+                },
+                {
+                    id: 'Live_LofiGirl',
+                    name: 'Lofi Girl',
+                    youtubeId: 'jfKfPfyJRdk', // Example YouTube live stream ID for Lofi Girl
+                    type: 'live'
+                },
+                {
+                    id: 'Live_PeacefulSolitude',
+                    name: 'Peaceful Solitude',
+                    youtubeId: 'F02iMCEEQWs', // Another example
+                    type: 'live'
+                },
+                // Add more live themes here
             ];
             // --- END: MANUALLY EDIT SECTION ---
 
@@ -698,7 +780,6 @@
             let timerInterval = null;
             let timerState = 'idle';
             let currentAppMode = 'home';
-            let currentTimerMode = 'pomodoro';
             let timeInSeconds = 25 * 60;
             let pomodoroSessionCount = 0;
             let isBreakTime = false;
@@ -708,7 +789,7 @@
             let currentTaskIndex = 0;
 
             // YouTube Player API variables
-            let player; // This will hold the YT.Player object
+            let player; // This will hold the YT.Player object for main music
             // No need for currentPlaylist and currentPlaylistIndex here, as the player handles it internally
             // based on loadPlaylist/videoById.
 
@@ -729,20 +810,33 @@
                     pomodoro: { focus: 25, shortBreak: 5, longBreak: 15 },
                     alertSound: 'C5',
                     alertVolume: 0.5,
-                    // Default themes are set to the first gradient/ambient themes if available, otherwise a placeholder.
-                    // This ensures a valid URL is always present for initial load.
+                    // Default themes are now objects with type and url/youtubeId
                     themes: {
-                        home: allThemes.find(t => t.type === 'gradient')?.imageUrl || 'https://placehold.co/1920x1080/000000/FFFFFF?text=Home+Theme',
-                        focus: allThemes.find(t => t.type === 'gradient')?.imageUrl || 'https://placehold.co/1920x1080/000000/FFFFFF?text=Focus+Theme',
-                        ambient: allThemes.find(t => t.type === 'ambient')?.imageUrl || 'https://placehold.co/1920x1080/000000/FFFFFF?text=Ambient+Theme'
+                        home: { type: 'image', url: allThemes.find(t => t.type === 'gradient')?.imageUrl || 'https://placehold.co/1920x1080/000000/FFFFFF?text=Home+Theme' },
+                        focus: { type: 'image', url: allThemes.find(t => t.type === 'gradient')?.imageUrl || 'https://placehold.co/1920x1080/000000/FFFFFF?text=Focus+Theme' },
+                        ambient: { type: 'image', url: allThemes.find(t => t.type === 'ambient')?.imageUrl || 'https://placehold.co/1920x1080/000000/FFFFFF?text=Ambient+Theme' }
                     },
                     music: {
                         currentPlaylistUrl: '',
                         isPlaying: false,
-                        musicControlsVisible: true // New: Default to visible
+                        musicControlsVisible: true,
+                        playLiveWallpaperAudio: false // New: Default to OFF
                     }
                 };
+                
+                // Parse saved settings, merging with defaults
                 appSettings = savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
+
+                // Ensure nested objects are properly merged for themes and music
+                if (savedSettings) {
+                    const parsedSavedSettings = JSON.parse(savedSettings);
+                    if (parsedSavedSettings.themes) {
+                        appSettings.themes = { ...defaultSettings.themes, ...parsedSavedSettings.themes };
+                    }
+                    if (parsedSavedSettings.music) {
+                        appSettings.music = { ...defaultSettings.music, ...parsedSavedSettings.music };
+                    }
+                }
                 
                 dashboardNameInput.value = appSettings.dashboardName;
                 pomodoroFocusInput.value = appSettings.pomodoro.focus;
@@ -755,8 +849,8 @@
                 if (appSettings.music.currentPlaylistUrl) {
                     musicUrlInput.value = appSettings.music.currentPlaylistUrl;
                 }
-                // Set the toggle switch state based on saved settings
                 toggleMusicControls.checked = appSettings.music.musicControlsVisible;
+                toggleLiveWallpaperAudio.checked = appSettings.music.playLiveWallpaperAudio; // Set state for new toggle
             }
 
             function applyClockFormatSelection() {
@@ -773,17 +867,16 @@
              * Populates a theme selection container with theme options.
              * @param {string} containerId - The ID of the HTML element to populate (e.g., 'home-theme-options').
              * @param {string} themeModeKey - The key in appSettings.themes (e.g., 'home', 'focus', 'ambient')
-             * to store the selected theme URL.
+             * to store the selected theme object.
              */
             function populateThemeOptions(containerId, themeModeKey) {
                 const container = document.getElementById(containerId);
                 container.innerHTML = ''; // Clear previous options
 
-                // Filter themes for 'Gradient and Colours' and 'Ambient Worlds' sections
                 const gradientThemes = allThemes.filter(theme => theme.type === 'gradient');
                 const ambientThemes = allThemes.filter(theme => theme.type === 'ambient');
+                const liveThemes = allThemes.filter(theme => theme.type === 'live'); // New: Live themes
 
-                // Helper to create and append theme elements
                 const appendThemes = (themesArray, sectionTitle) => {
                     if (themesArray.length > 0) {
                         const sectionHeader = document.createElement('h4');
@@ -793,42 +886,57 @@
 
                         themesArray.forEach(theme => {
                             const themeDiv = document.createElement('div');
-                            // Apply styles directly to themeDiv to match clock-format-option
-                            themeDiv.className = 'theme-item cursor-pointer p-2'; // Removed border-related classes here
+                            themeDiv.className = 'theme-item cursor-pointer p-2';
                             
-                            // Check if this theme is currently selected for the specific mode (home, focus, ambient)
-                            const isSelected = appSettings.themes[themeModeKey] === theme.imageUrl;
+                            // Determine if this theme is currently selected
+                            let isSelected = false;
+                            const currentThemeSetting = appSettings.themes[themeModeKey];
+                            if (currentThemeSetting) {
+                                if (theme.type === 'live' && currentThemeSetting.type === 'live' && currentThemeSetting.youtubeId === theme.youtubeId) {
+                                    isSelected = true;
+                                } else if (theme.type !== 'live' && currentThemeSetting.type === 'image' && currentThemeSetting.url === theme.imageUrl) {
+                                    isSelected = true;
+                                }
+                            }
+                            
                             if (isSelected) {
                                 themeDiv.classList.add('selected');
                             }
 
+                            // Get image URL for preview
+                            let previewImageUrl;
+                            if (theme.type === 'live') {
+                                // Use YouTube thumbnail for live wallpapers
+                                previewImageUrl = `https://img.youtube.com/vi/${theme.youtubeId}/mqdefault.jpg`; 
+                            } else {
+                                previewImageUrl = theme.imageUrl;
+                            }
+
                             themeDiv.innerHTML = `
-                                <img src="${theme.imageUrl}" 
+                                <img src="${previewImageUrl}" 
                                      alt="${theme.name}" 
                                      class="w-full h-24 object-cover rounded-lg aspect-[141/88] bg-gray-800">
                                 <span class="text-center text-sm mt-2 text-gray-300">${theme.name}</span>
                             `;
                             
-                            // Add onerror for local images and Unsplash URLs
                             const imgElement = themeDiv.querySelector('img');
-                            // Apply selected class to the image itself for border styling
                             if (isSelected) {
                                 imgElement.classList.add('selected');
                             }
                             imgElement.onerror = function() {
-                                this.onerror = null; // Prevent infinite loop
-                                // Use a placeholder image with the theme name for context
+                                this.onerror = null;
                                 this.src = `https://placehold.co/150x90/e0e0e0/555555?text=${encodeURIComponent(theme.name.replace(/\s/g, '+'))}`;
                                 this.alt = `Image not found for ${theme.name}`;
                             };
 
                             themeDiv.addEventListener('click', () => {
-                                appSettings.themes[themeModeKey] = theme.imageUrl; // Update the theme for the specific mode
-                                saveSettings();
-                                // Re-apply the background immediately if the current mode is affected
-                                if (currentAppMode === themeModeKey) {
-                                    backgroundContainer.style.backgroundImage = `url('${appSettings.themes[currentAppMode]}')`;
+                                if (theme.type === 'live') {
+                                    appSettings.themes[themeModeKey] = { type: 'live', youtubeId: theme.youtubeId };
+                                } else {
+                                    appSettings.themes[themeModeKey] = { type: 'image', url: theme.imageUrl };
                                 }
+                                saveSettings();
+                                switchMode(currentAppMode); // Re-apply current mode to update background
                                 populateAllThemePickers(); // Re-render all theme pickers to update selections
                             });
                             container.appendChild(themeDiv);
@@ -836,9 +944,9 @@
                     }
                 };
 
-                // Append themes to the container
                 appendThemes(gradientThemes, 'Gradient and Colours');
                 appendThemes(ambientThemes, 'Ambient Worlds');
+                appendThemes(liveThemes, 'Live Wallpapers'); // New: Append live themes
             }
 
             function populateAllThemePickers() {
@@ -899,10 +1007,33 @@
                         'onStateChange': onPlayerStateChange
                     }
                 });
+
+                liveWallpaperPlayer = new YT.Player('live-wallpaper-player', {
+                    height: '100%', // Fill container
+                    width: '100%',  // Fill container
+                    playerVars: {
+                        'autoplay': 1, // Autoplay live wallpaper
+                        'controls': 0, // No controls
+                        'disablekb': 1,
+                        'modestbranding': 1,
+                        'rel': 0,
+                        'showinfo': 0,
+                        // 'loop': 1, // Removed: Not applicable for live streams and can cause issues
+                        'fs': 0,
+                        'iv_load_policy': 3,
+                        'enablejsapi': 1,
+                        'mute': 1, // Start muted, controlled by toggle
+                        'playsinline': 1 // Added for better mobile compatibility
+                    },
+                    events: {
+                        'onReady': onLiveWallpaperPlayerReady,
+                        'onStateChange': onLiveWallpaperPlayerStateChange
+                    }
+                });
             };
 
             function onPlayerReady(event) {
-                console.log('YouTube Player is ready.');
+                console.log('Main YouTube Player is ready.');
                 if (appSettings.music.currentPlaylistUrl) {
                     loadMusic(appSettings.music.currentPlaylistUrl);
                     if (appSettings.music.isPlaying) {
@@ -911,21 +1042,39 @@
                 }
                 updateMusicPlayPauseButtons();
                 updateMusicControlsVisibility(); // Ensure visibility is correct on load
+                manageAudioPriority(); // Initial audio priority check
+            }
+
+            function onLiveWallpaperPlayerReady(event) {
+                console.log('Live Wallpaper Player is ready.');
+                // Initial mute/unmute based on settings
+                if (appSettings.music.playLiveWallpaperAudio) {
+                    event.target.unMute();
+                } else {
+                    event.target.mute();
+                }
+                // Load the live wallpaper if the current mode's theme is live
+                const currentThemeSetting = appSettings.themes[currentAppMode];
+                if (currentThemeSetting && currentThemeSetting.type === 'live') {
+                    loadLiveWallpaper(currentThemeSetting.youtubeId);
+                }
+                // Explicitly play the video here too, in case it was cued but not played
+                event.target.playVideo(); 
+                manageAudioPriority(); // Apply initial audio priority
             }
 
             function onPlayerStateChange(event) {
-                console.log('Player state changed:', event.data);
+                console.log('Main Player state changed:', event.data);
                 if (event.data === YT.PlayerState.ENDED) {
                     playNextMusic();
                 } else if (event.data === YT.PlayerState.PLAYING) {
                     appSettings.music.isPlaying = true;
-                    // When a new video starts playing, update its title
                     if (player && typeof player.getVideoData === 'function') {
                         const videoData = player.getVideoData();
                         if (videoData && videoData.title) {
                             updateTrackTitle(videoData.title);
                         } else {
-                            updateTrackTitle('Unknown Title'); // Fallback
+                            updateTrackTitle('Unknown Title');
                         }
                     }
                 } else {
@@ -933,6 +1082,18 @@
                 }
                 saveSettings();
                 updateMusicPlayPauseButtons();
+            }
+
+            function onLiveWallpaperPlayerStateChange(event) {
+                console.log('Live Wallpaper Player state changed:', event.data);
+                // Ensure live wallpaper keeps playing if it gets paused for any reason (e.g., browser policy)
+                if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.BUFFERING || event.data === YT.PlayerState.CUED) {
+                    const currentThemeSetting = appSettings.themes[currentAppMode];
+                    if (currentThemeSetting && currentThemeSetting.type === 'live') {
+                        // Only attempt to play if it's supposed to be a live wallpaper
+                        event.target.playVideo();
+                    }
+                }
             }
 
             function extractYouTubeId(url) {
@@ -956,7 +1117,7 @@
 
             function loadMusic(url) {
                 if (!player) {
-                    console.warn('YouTube Player not initialized yet.');
+                    console.warn('Main YouTube Player not initialized yet.');
                     return;
                 }
                 const { videoId, playlistId } = extractYouTubeId(url);
@@ -974,8 +1135,26 @@
                     console.log('Loading video:', videoId);
                 } else {
                     console.error('Invalid YouTube URL provided:', url);
-                    updateTrackTitle('Invalid URL'); // Display error in title area
+                    updateTrackTitle('Invalid URL');
                 }
+            }
+
+            function loadLiveWallpaper(youtubeId) {
+                if (!liveWallpaperPlayer) {
+                    console.warn('Live Wallpaper Player not initialized yet.');
+                    return;
+                }
+                // For looping single videos, you need to specify a playlist of one video
+                liveWallpaperPlayer.loadVideoById({
+                    videoId: youtubeId,
+                    startSeconds: 0,
+                    suggestedQuality: 'small'
+                });
+                liveWallpaperPlayerContainer.classList.add('visible-element');
+                liveWallpaperPlayerContainer.classList.remove('hidden-element');
+                // Explicitly play the video after loading
+                liveWallpaperPlayer.playVideo(); 
+                manageAudioPriority(); // Re-evaluate audio priority when new live wallpaper loads
             }
 
             function playMusic() {
@@ -1027,15 +1206,13 @@
                 }
             }
 
-            // New function to update the track title and apply scrolling
+            // Function to update the track title and apply scrolling
             function updateTrackTitle(title) {
                 musicTrackTitleElement.textContent = title;
                 musicTrackTitleElement.style.animation = 'none'; // Reset animation
-                // Always position absolute for consistent measurement and control
-                musicTrackTitleElement.style.position = 'absolute'; 
-                musicTrackTitleElement.style.top = '50%'; // Keep vertically centered
-                musicTrackTitleElement.style.transform = 'translateY(-50%)'; // Vertically center
-                musicTrackTitleElement.style.left = '0'; // Default to left for scrolling
+                
+                // Base vertical centering
+                musicTrackTitleElement.style.transform = 'translateY(-50%)'; 
 
                 // Use a small timeout to ensure reflow for accurate measurement
                 setTimeout(() => {
@@ -1045,27 +1222,58 @@
                     if (textWidth > containerWidth) {
                         // Text is long, apply scrolling animation
                         const speed = 30; // pixels per second
-                        // Calculate duration based on the full text length for a smooth, consistent speed
                         const duration = textWidth / speed; 
                         
                         // Adjust slide distance to scroll the full text off-screen and then back
-                        // The text needs to move from 0 to -(textWidth - containerWidth) to show the end
-                        // and then back. We add a small buffer for visual separation.
                         const slideDistance = textWidth - containerWidth + 20; // +20px for buffer
 
                         musicTrackTitleElement.style.setProperty('--slide-distance', `-${slideDistance}px`);
                         musicTrackTitleElement.style.animation = `slideText ${duration}s linear infinite alternate`;
-                        // Ensure parent container aligns to start for scrolling text
-                        musicTrackTitleElement.parentElement.style.justifyContent = 'flex-start';
+                        musicTrackTitleElement.style.left = '0'; // Start from left for scrolling
                     } else {
                         // Text is short, center it and remove animation
                         musicTrackTitleElement.style.animation = 'none';
                         musicTrackTitleElement.style.left = '50%'; // Center horizontally
                         musicTrackTitleElement.style.transform = 'translate(-50%, -50%)'; // Center both
-                        // Ensure parent container centers content for short text
-                        musicTrackTitleElement.parentElement.style.justifyContent = 'center';
                     }
                 }, 50); // Small delay to ensure measurements are accurate after DOM update
+            }
+
+            // New function for audio priority management
+            function manageAudioPriority() {
+                const currentThemeSetting = appSettings.themes[currentAppMode];
+                const isLiveWallpaperActive = currentThemeSetting && currentThemeSetting.type === 'live';
+
+                if (appSettings.music.playLiveWallpaperAudio && isLiveWallpaperActive) {
+                    // Live wallpaper audio is ON and a live wallpaper is active
+                    if (player && typeof player.mute === 'function') {
+                        player.mute(); // Mute main music player
+                        player.pauseVideo(); // Pause main music player
+                        appSettings.music.isPlaying = false; // Update state
+                        updateMusicPlayPauseButtons(); // Update UI
+                    }
+                    if (liveWallpaperPlayer && typeof liveWallpaperPlayer.unMute === 'function') {
+                        liveWallpaperPlayer.unMute(); // Unmute live wallpaper audio
+                    }
+                    // Disable main music player controls
+                    musicPrevBtn.disabled = true;
+                    musicPlayPauseBtn.disabled = true;
+                    musicNextBtn.disabled = true;
+                    globalMusicControls.classList.add('opacity-50', 'pointer-events-none'); // Visual disable
+                } else {
+                    // Live wallpaper audio is OFF or no live wallpaper is active
+                    if (liveWallpaperPlayer && typeof liveWallpaperPlayer.mute === 'function') {
+                        liveWallpaperPlayer.mute(); // Mute live wallpaper audio
+                    }
+                    // Enable main music player controls
+                    musicPrevBtn.disabled = false;
+                    musicPlayPauseBtn.disabled = false;
+                    musicNextBtn.disabled = false;
+                    globalMusicControls.classList.remove('opacity-50', 'pointer-events-none'); // Remove visual disable
+                    // Note: Main music player's play state is NOT automatically resumed here.
+                    // The user needs to manually unpause it if it was paused.
+                }
+                saveSettings(); // Save the new audio priority state
             }
 
             // --- General Functions ---
@@ -1087,11 +1295,35 @@
                         button.classList.remove('active');
                     }
                 });
-                // Apply the theme for the current mode
-                backgroundContainer.style.backgroundImage = `url('${appSettings.themes[currentAppMode]}')`;
+
+                // Handle background based on theme type
+                const selectedTheme = appSettings.themes[targetMode];
+                if (selectedTheme && selectedTheme.type === 'live') {
+                    backgroundContainer.style.backgroundImage = 'none'; // Hide image background
+                    if (liveWallpaperPlayer) {
+                        loadLiveWallpaper(selectedTheme.youtubeId); // Load live video
+                    }
+                } else if (selectedTheme && selectedTheme.type === 'image') {
+                    liveWallpaperPlayerContainer.classList.add('hidden-element'); // Hide live player
+                    liveWallpaperPlayerContainer.classList.remove('visible-element');
+                    backgroundContainer.style.backgroundImage = `url('${selectedTheme.url}')`; // Set image background
+                    if (liveWallpaperPlayer && typeof liveWallpaperPlayer.stopVideo === 'function') {
+                         liveWallpaperPlayer.stopVideo(); // Stop live wallpaper video
+                    }
+                } else {
+                    // Fallback if no theme or invalid type
+                    liveWallpaperPlayerContainer.classList.add('hidden-element');
+                    liveWallpaperPlayerContainer.classList.remove('visible-element');
+                    backgroundContainer.style.backgroundImage = 'none'; // Or a default image
+                    if (liveWallpaperPlayer && typeof liveWallpaperPlayer.stopVideo === 'function') {
+                         liveWallpaperPlayer.stopVideo(); // Stop live wallpaper video
+                    }
+                }
+                
                 updateTimerDisplay();
                 updateStartPauseButtons();
                 updateMusicControlsVisibility(); // Ensure visibility is correct after mode switch
+                manageAudioPriority(); // Re-evaluate audio priority after mode switch
             }
             function updateTime() {
                 const now = new Date();
@@ -1187,6 +1419,13 @@
                 updateMusicControlsVisibility();
             });
 
+            // Live wallpaper audio toggle listener
+            toggleLiveWallpaperAudio.addEventListener('change', (e) => {
+                appSettings.music.playLiveWallpaperAudio = e.target.checked;
+                saveSettings();
+                manageAudioPriority();
+            });
+
 
             // --- Initial Setup ---
             loadSettings();
@@ -1201,6 +1440,8 @@
             switchSettingsPage('home-theme-page');
             updateMusicPlayPauseButtons();
             updateMusicControlsVisibility(); // Initial call to set visibility based on settings
+            // manageAudioPriority() is called in onPlayerReady and onLiveWallpaperPlayerReady
+            // to ensure players are initialized before managing their audio.
         });
     </script>
 </body>
